@@ -12,3 +12,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+
+# Pycharm ignored files
+.idea
