@@ -1,5 +1,8 @@
+from http import HTTPStatus
+
 from fastapi import FastAPI, HTTPException
 from starlette import status
+from src.schemas import PostCreate
 
 app = FastAPI()
 
@@ -62,3 +65,11 @@ def get_post(post_id: int=None):
     if 0 < post_id < len(text_posts):
         return text_posts.get(post_id)
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+@app.post("/posts")
+def create_post(post: PostCreate):
+    text_posts[len(text_posts) + 1] = {
+        "title": post.title,
+        "content": post.content
+    }
+    return HTTPStatus.CREATED
