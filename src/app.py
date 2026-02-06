@@ -46,12 +46,17 @@ text_posts = {
     }
 }
 
+# MAIN / (ROOT)
 app.get("/")
+
+# QUERY PARAMETER
 @app.get("/posts")
 def get_all_posts(limit: int = None):
+    if limit:
+        return list(text_posts.values())[:limit]
     return text_posts
 
-
+# PATH PARAMETER
 @app.get("/posts/{post_id}")
 def get_post(post_id: int=None):
     if 0 < post_id < len(text_posts):
