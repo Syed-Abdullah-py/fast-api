@@ -1,7 +1,5 @@
-from http import HTTPStatus
-
-from fastapi import FastAPI, HTTPException
-from starlette import status
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Depends
+from sqlalchemy import select
 from src.schemas import PostCreate, PostResponse
 from src.db import Post, create_db_and_tables, get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,70 +12,38 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-text_posts = {
-    1: {
-        "title": "Welcome",
-        "content": "Welcome to the platform"
-    },
-    2: {
-        "title": "Announcement",
-        "content": "We are excited to share an update"
-    },
-    3: {
-        "title": "Getting Started",
-        "content": "Here is how you can begin using the app"
-    },
-    4: {
-        "title": "Feature Highlight",
-        "content": "This feature helps improve productivity"
-    },
-    5: {
-        "title": "Tips and Tricks",
-        "content": "Use shortcuts to save time"
-    },
-    6: {
-        "title": "Maintenance Update",
-        "content": "The system will be under maintenance tonight"
-    },
-    7: {
-        "title": "Bug Fixes",
-        "content": "Several issues have been resolved"
-    },
-    8: {
-        "title": "Performance Update",
-        "content": "Application performance has been improved"
-    },
-    9: {
-        "title": "Community Post",
-        "content": "Thanks for being part of our community"
-    },
-    10: {
-        "title": "Closing Note",
-        "content": "Stay tuned for more updates"
-    }
-}
+@app.post("/upload")
+async def upload_file(
+        file: UploadFile = File(...),
+        caption: str = Form(...),
+        session: AsyncSession = Depends(get_async_session)
+):
+    post = Post(
+        caption=caption,
+        url="dummy.url",
+        file_type="photo",
+        file_name="dummy name",
+    )
 
-# MAIN / (ROOT)
-app.get("/")
+    # Staging
+    session.add(post)
 
-# QUERY PARAMETER
-@app.get("/posts")
-def get_all_posts(limit: int = None):
-    if limit:
-        return list(text_posts.values())[:limit]
-    return text_posts
+    # Actually adding
+    await session.commit()
 
-# PATH PARAMETER
-@app.get("/posts/{post_id}")
-def get_post(post_id: int=None):
-    if 0 < post_id < len(text_posts):
-        return text_posts.get(post_id)
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    # Hydrating the default fields
+    await session.refresh(post)
 
-@app.post("/posts")
-def create_post(post: PostCreate) -> PostResponse:
-    text_posts[len(text_posts) + 1] = {
-        "title": post.title,
-        "content": post.content
-    }
-    return PostResponse(**text_posts[len(text_posts) + 1])
+    # Return the Hydrated post object
+    return post
+
+@app.get("/feed")
+async def get_feed(
+        session: AsyncSession = Depends(get_async_session)
+):
+    result = await session.execute(
+        select(Post)
+        .order_by(Post.created_at.desc())
+    )
+
+    return result.scalars().all()
